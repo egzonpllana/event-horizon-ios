@@ -18,6 +18,18 @@ public protocol APIClientTaskManagerProtocol: Sendable {
     /// - Important: The task will only be added if its status is not `.finished` or `.canceled`.
     func addTask<T>(_ task: Task<T, any Error>, for id: String)
 
+    /// Configures the task manager with a custom logger.
+    ///
+    /// This method allows setting a logger to be used for logging task lifecycle events such as
+    /// adding, canceling, and updating task statuses. It is intended to be called once during
+    /// application startup before any task operations are performed.
+    ///
+    /// - Parameter logger: A custom logger conforming to `EHLoggerProtocol` used for emitting log messages.
+    ///
+    /// - Important: If not configured, a default logger (`DefaultEHLogger`) will be used.
+    /// Calling this method multiple times will override the existing logger.
+    func configure(logger: EHLoggerProtocol)
+
     /// Cancels a task with the given identifier.
     ///
     /// This method cancels the task if it is either `.queued` or `.inProgress`. The task status will be updated to `.canceled` after cancellation.

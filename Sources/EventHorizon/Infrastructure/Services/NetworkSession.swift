@@ -5,27 +5,33 @@
 
 import Foundation
 
-/// A concrete implementation of `NetworkSessionProtocol` that wraps `URLSession`.
-///
-/// This class provides a default implementation for performing network requests using `URLSession`.
-/// It allows dependency injection of a custom `URLSession` instance for better testability.
+/// A concrete implementation of `NetworkSessionProtocol` that wraps `URLSession` with configurable timeout support.
 public final class NetworkSession: NetworkSessionProtocol {
 
-    /// The underlying `URLSession` used for network requests.
     private let session: URLSession
 
-    /// Creates a new network session with an optional custom `URLSession` instance.
+    /// Initializes a `NetworkSession` with optional timeout settings.
     ///
-    /// - Parameter session: The `URLSession` instance to use. Defaults to `.shared`.
-    public init(session: URLSession = .shared) {
+    /// - Parameters:
+    ///   - timeout: The timeout interval to apply for both the request and resource. Defaults to 60 seconds.
+    ///   - delegate: Optional `URLSessionDelegate`, if needed for custom behavior.
+    public init(
+        timeout: TimeInterval = 60,
+        delegate: URLSessionDelegate? = nil
+    ) {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = timeout
+        config.timeoutIntervalForResource = timeout
+        self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }
+
+    /// Initializes with a pre-configured `URLSession`.
+    ///
+    /// - Parameter session: The `URLSession` instance to use.
+    public init(session: URLSession) {
         self.session = session
     }
 
-    /// Performs a network request and returns the response data.
-    ///
-    /// - Parameter request: The `URLRequest` to be executed.
-    /// - Returns: A tuple containing the response `Data` and the associated `URLResponse`.
-    /// - Throws: An error if the network request fails.
     public func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         return try await session.data(for: request)
     }

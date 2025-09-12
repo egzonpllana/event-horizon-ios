@@ -1,7 +1,7 @@
 /// A protocol that defines a logger used for tracking and recording events within the application.
 ///
 /// Implementers of this protocol should handle logging messages with different levels of severity.
-public protocol EHLoggerProtocol: Sendable {
+public protocol EHLoggerProtocol {
     /// Logs a message with a specified type.
     ///
     /// - Parameters:

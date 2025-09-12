@@ -5,12 +5,15 @@ public final class APIClientTaskManager: APIClientTaskManagerProtocol, @unchecke
     // MARK: - Properties -
     public static let shared = APIClientTaskManager()
     private var taskStatuses: [String: TaskStatus] = [:]
-    private let logger: EHLoggerProtocol
+    private var logger: EHLoggerProtocol?
     private let lock = NSLock()
     private var tasks: [String: any Sendable] = [:]
 
     // MARK: - Initialization -
-    public init(logger: EHLoggerProtocol = DefaultEHLogger()) {
+    private init() {}
+
+    // MARK: - Configuration
+    public func configure(logger: EHLoggerProtocol) {
         self.logger = logger
     }
 
@@ -24,14 +27,14 @@ public final class APIClientTaskManager: APIClientTaskManagerProtocol, @unchecke
         // Prevent adding tasks that are finished or canceled
         if taskStatuses[id] == .finished || taskStatuses[id] == .canceled {
             lock.unlock()
-            logger.log(message: LogMessages.taskAlreadyFinishedOrCanceled(id: id), type: .debug)
+            logger?.log(message: LogMessages.taskAlreadyFinishedOrCanceled(id: id), type: .debug)
             return
         }
 
         tasks[id] = task
         taskStatuses[id] = .queued
 
-        logger.log(message: LogMessages.taskAddedAndQueued(id: id), type: .debug)
+        logger?.log(message: LogMessages.taskAddedAndQueued(id: id), type: .debug)
 
         lock.unlock()
     }
@@ -43,9 +46,9 @@ public final class APIClientTaskManager: APIClientTaskManagerProtocol, @unchecke
             task.cancel()
             tasks.removeValue(forKey: id)
             taskStatuses[id] = .canceled  // Mark the task as canceled
-            logger.log(message: LogMessages.taskCanceled(id: id), type: .debug)
+            logger?.log(message: LogMessages.taskCanceled(id: id), type: .debug)
         } else {
-            logger.log(message: LogMessages.noTaskFoundOrInvalidState(id: id, state: String(describing: taskStatuses[id])), type: .error)
+            logger?.log(message: LogMessages.noTaskFoundOrInvalidState(id: id, state: String(describing: taskStatuses[id])), type: .error)
         }
 
         lock.unlock()
@@ -57,7 +60,7 @@ public final class APIClientTaskManager: APIClientTaskManagerProtocol, @unchecke
     ) {
         lock.lock()
         taskStatuses[id] = status
-        logger.log(message: LogMessages.taskStatusUpdated(id: id, status: status), type: .debug)
+        logger?.log(message: LogMessages.taskStatusUpdated(id: id, status: status), type: .debug)
         lock.unlock()
     }
 
@@ -67,13 +70,37 @@ public final class APIClientTaskManager: APIClientTaskManagerProtocol, @unchecke
         for id in tasks.keys {
             cancelTask(for: id)
         }
-        logger.log(message: LogMessages.allTasksCanceled, type: .debug)
+        logger?.log(message: LogMessages.allTasksCanceled, type: .debug)
     }
 
     public func getTaskStatus(for id: String) -> TaskStatus {
         lock.lock()
         defer { lock.unlock() }
         return taskStatuses[id] ?? .unknown
+    }
+    
+    /// Clean up finished tasks to prevent memory accumulation
+    public func cleanupFinishedTasks() {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        let finishedTaskIds = taskStatuses.compactMap { key, value in
+            value == .finished || value == .canceled ? key : nil
+        }
+        
+        for id in finishedTaskIds {
+            tasks.removeValue(forKey: id)
+            taskStatuses.removeValue(forKey: id)
+        }
+        
+        logger?.log(message: "Cleaned up \(finishedTaskIds.count) finished tasks", type: .debug)
+    }
+    
+    /// Get current task count for monitoring
+    public func getTaskCount() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return tasks.count
     }
 }
 

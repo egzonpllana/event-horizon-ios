@@ -17,29 +17,36 @@ import Foundation
 /// - Note: The `tokenProvider` is a closure that returns an optional `String` representing the authentication token.
 ///         It is marked as `@Sendable` to ensure thread-safety when accessed in concurrent execution contexts.
 public struct AuthInterceptor: NetworkInterceptorProtocol {
+
     private let tokenProvider: @Sendable () -> String?
 
-    public init(
-        tokenProvider: @Sendable @autoclosure @escaping () -> String?
-    ) {
+    /// Initializes the interceptor with a closure that provides the access token.
+    ///
+    /// - Parameter tokenProvider: A closure returning the access token, or `nil` if none exists.
+    ///
+    /// ## Example Usage
+    ///
+    /// ```swift
+    /// // Using static token
+    /// let authInterceptor = AuthInterceptor(tokenProvider: { "my_static_token" })
+    ///
+    public init(tokenProvider: @Sendable @escaping () -> String?) {
         self.tokenProvider = tokenProvider
     }
 
     public func intercept(request: URLRequest) -> URLRequest {
         var modifiedRequest = request
+
+        // Inject the Authorization header if a token is available
         if let token = tokenProvider() {
-            modifiedRequest.addValue(
-                "Bearer \(token)",
-                forHTTPHeaderField: "Authorization"
-            )
+            modifiedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+
         return modifiedRequest
     }
 
-    public func intercept(
-        response: URLResponse?,
-        data: Data?
-    ) -> (URLResponse?, Data?) {
+    public func intercept(response: URLResponse?, data: Data?) -> (URLResponse?, Data?) {
+        // No response modifications needed for now
         return (response, data)
     }
 }

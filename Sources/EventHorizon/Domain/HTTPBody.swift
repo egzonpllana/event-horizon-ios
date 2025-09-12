@@ -12,13 +12,16 @@ public enum HTTPBody {
     /// A raw data HTTP body.
     case data(Data)
 
+    /// A JSON-encoded HTTP body.
+    case json(Data)
+
     /// A multipart form-data HTTP body.
     case multipartFormData(MultipartFormData)
 
     /// Returns the raw `Data` representation of the HTTP body, if applicable.
     public var asData: Data? {
         switch self {
-            case .data(let data):
+            case .data(let data), .json(let data):
                 return data
             case .multipartFormData(let formData):
                 return formData.asData
@@ -30,6 +33,8 @@ public enum HTTPBody {
         switch self {
             case .data:
                 return "application/octet-stream"
+            case .json:
+                return "application/json"
             case .multipartFormData(let formData):
                 return "multipart/form-data; boundary=\(formData.boundary)"
         }
