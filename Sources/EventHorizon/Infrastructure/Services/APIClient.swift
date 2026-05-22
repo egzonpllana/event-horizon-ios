@@ -74,6 +74,18 @@ public final class APIClient: APIClientProtocol {
         }
     }
 
+    /// Builds a URLRequest from the endpoint and applies all interceptors (auth, attestation, etc.)
+    /// without executing the request. Use this to prepare requests for execution via a background URLSession.
+    ///
+    /// - Parameter endpoint: The API endpoint to build the request from
+    /// - Returns: A fully prepared URLRequest with all interceptor headers applied
+    public func prepareRequest(_ endpoint: any APIEndpointProtocol) async throws -> URLRequest {
+        guard let request = endpoint.urlRequest else {
+            throw APIClientError.invalidURL
+        }
+        return try await interceptRequest(request)
+    }
+
     public func cancelRequest(with id: String) {
         log(APIClientLogMessages.cancellingRequest(id: id))
         taskManager.cancelTask(for: id)
@@ -126,10 +138,21 @@ private extension APIClient {
 // MARK: - Perform Request helpers -
 private extension APIClient {
 
+    struct TokenRefreshResult {
+        let data: Data?
+        let shouldSuppressLogging: Bool
+    }
+
+    enum TokenRefreshConstants {
+        static let unauthorizedStatusCode = 401
+        static let invalidTokenMessage = "Invalid token"
+    }
+
     @discardableResult
     func performRequest(
         _ request: URLRequest,
         progressDelegate: (any UploadProgressDelegateProtocol)? = nil,
+        tokenRefreshDepth: Int = 0
     ) async throws -> Data {
         // Request Interception
         var mutableRequest = try await interceptRequest(request)
@@ -148,14 +171,25 @@ private extension APIClient {
                 logRequest(mutableRequest)
                 let (data, response) = try await sessionToUse.data(for: mutableRequest)
 
-                // Token Refresh
-                if let retried = try await handleTokenRefreshing(
-                    request: request,
-                    progressDelegate: progressDelegate,
-                    response: response,
-                    data: data
-                ) {
-                    return retried
+                // Token Refresh (skip if already a retry after refresh to prevent infinite recursion)
+                let tokenRefreshResult: TokenRefreshResult
+                if tokenRefreshDepth >= 1 {
+                    tokenRefreshResult = TokenRefreshResult(
+                        data: nil,
+                        shouldSuppressLogging: false
+                    )
+                } else {
+                    tokenRefreshResult = try await handleTokenRefreshing(
+                        request: request,
+                        progressDelegate: progressDelegate,
+                        response: response,
+                        data: data,
+                        tokenRefreshDepth: tokenRefreshDepth
+                    )
+                }
+                
+                if let retriedData = tokenRefreshResult.data {
+                    return retriedData
                 }
 
                 // Response Interception
@@ -163,7 +197,10 @@ private extension APIClient {
                     data: data,
                     response: response
                 )
-                logResponse(data: finalData, response: finalResponse)
+                
+                if !tokenRefreshResult.shouldSuppressLogging {
+                    logResponse(data: finalData, response: finalResponse)
+                }
 
                 // Check if we should retry based on response status
                 if let retryInterceptor = retryInterceptor,
@@ -248,26 +285,54 @@ private extension APIClient {
         request: URLRequest,
         progressDelegate: (any UploadProgressDelegateProtocol)? = nil,
         response: URLResponse,
-        data: Data
-    ) async throws -> Data? {
+        data: Data,
+        tokenRefreshDepth: Int
+    ) async throws -> TokenRefreshResult {
+        let isTokenRefreshScenario = isTokenRefreshScenario(response: response, data: data)
 
         for interceptor in interceptors {
             guard let refreshable = interceptor as? TokenRefreshingInterceptorProtocol else { continue }
 
-            let (action, newResponse, newData) = await refreshable.interceptAsync(
+            let (action, _, _) = await refreshable.interceptAsync(
                 response: response,
                 data: data
             )
 
             if action == .retryWithUpdatedToken {
-                return try await performRequest(
+                let retriedData = try await performRequest(
                     request,
                     progressDelegate: progressDelegate,
+                    tokenRefreshDepth: tokenRefreshDepth + 1
+                )
+                return TokenRefreshResult(
+                    data: retriedData,
+                    shouldSuppressLogging: true
                 )
             }
         }
 
-        return nil
+        return TokenRefreshResult(
+            data: nil,
+            shouldSuppressLogging: isTokenRefreshScenario
+        )
+    }
+
+    func isTokenRefreshScenario(response: URLResponse, data: Data) -> Bool {
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == TokenRefreshConstants.unauthorizedStatusCode else {
+            return false
+        }
+
+        guard interceptors.contains(where: { $0 is TokenRefreshingInterceptorProtocol }) else {
+            return false
+        }
+
+        guard let errorMessage = try? extractErrorMessage(from: data),
+              errorMessage == TokenRefreshConstants.invalidTokenMessage else {
+            return false
+        }
+
+        return true
     }
 
     func handleResponseInterceptors(

@@ -1,10 +1,3 @@
-//
-//  HTTPBody.swift
-//  EventHorizon
-//
-//  Created by Egzon Pllana on 22.3.25.
-//
-
 import Foundation
 
 /// Represents different types of HTTP request bodies.

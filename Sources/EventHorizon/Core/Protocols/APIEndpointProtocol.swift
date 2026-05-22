@@ -34,7 +34,7 @@ public protocol APIEndpointProtocol {
 
     /// URLRequest representation of the endpoint.
     var urlRequest: URLRequest? { get }
-    
+
     /// API version used by the endpoint, example: `/api/v1/`
     var apiVersion: String { get }
 }

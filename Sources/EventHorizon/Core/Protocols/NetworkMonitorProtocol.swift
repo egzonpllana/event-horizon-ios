@@ -1,10 +1,3 @@
-//
-//  AuthTokenStoreProviding.swift
-//  EventHorizon
-//
-//  Created by Egzon Pllana on 10.7.25.
-//
-
 import Foundation
 import Combine
 

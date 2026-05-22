@@ -24,6 +24,9 @@ public protocol AuthTokenStoreProviding {
     /// This token should also be stored securely and persisted across sessions.
     var refreshToken: String? { get }
 
+    /// The access token expiration date.
+    var accessTokenExpiry: String? { get }
+    
     /// Clears all authentication tokens from storage.
     ///
     /// This is typically called on user logout or session expiration.
@@ -31,4 +34,5 @@ public protocol AuthTokenStoreProviding {
 
     func setAccessToken(_ token: String)
     func setRefreshToken(_ token: String)
+    func setAccessTokenExpiry(_ expiry: String)
 }

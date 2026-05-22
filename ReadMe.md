@@ -13,6 +13,13 @@ EventHorizon is a lightweight, thread-safe package designed to build a clean and
     <img src="https://img.shields.io/badge/tvOS-15.0%2B-blue">
 </p>
 
+## Changelog
+
+| Version | Type | Highlights |
+| --- | --- | --- |
+| 3.0.0 | Major / breaking | `AuthTokenStoreProviding` gains `accessTokenExpiry` and `setAccessTokenExpiry(_:)` — existing conformers must implement both. `APIClient` adds `prepareRequest(_:)` for background-session uploads and a `tokenRefreshDepth` guard that prevents infinite recursion when a refreshed token is still rejected. Duplicate 401 logging is suppressed during a refresh retry. |
+| 2.0.0 | Major | Introduces `AuthTokenStoreProviding`, `NetworkMonitorProtocol`, `NetworkAwareInterceptor`, and `TokenRefreshingInterceptorProtocol`. `APIClient`, `RetryInterceptor`, and task management received a substantial rewrite. |
+
 #### Elegant and type-safe API
 ```swift
 let posts: [PostDTO] = try await apiClient.request(APIEndpoint.getPosts)
