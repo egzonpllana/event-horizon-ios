@@ -1,0 +1,70 @@
+sequenceDiagram
+    participant App as Host App
+    participant Client as APIClient
+    participant Inter as Interceptors
+    participant Tasks as APIClientTaskManager
+    participant Session as URLSession
+    participant Store as AuthTokenStore
+
+    Note over App,Store: Flow 1 — Setup
+
+    App->>Client: APIClient(interceptors:, taskManager:, logger:, session:)
+    App->>Store: provide AuthTokenStoreProviding conformer
+    App->>Inter: configure AuthInterceptor / NetworkAware / Retry / TokenRefreshing / HeaderInjector
+
+    Note over App,Store: Flow 2 — Request
+
+    App->>Client: request(endpoint) — Decodable T
+    Client->>Tasks: register task (UUID)
+    Client->>Inter: interceptRequest(URLRequest)
+    Inter->>Store: read accessToken
+    Store-->>Inter: token / nil
+    Inter-->>Client: mutated URLRequest (Authorization, headers)
+    Client->>Session: data(for: request)
+    Session-->>Client: (data, response)
+    Client->>Inter: handleResponseInterceptors(data, response)
+    Inter-->>Client: (finalData, finalResponse)
+    Client-->>App: decoded T
+
+    Note over App,Store: Flow 3 — Token refresh (401 "Invalid token")
+
+    Session-->>Client: 401 + "Invalid token"
+    Client->>Inter: TokenRefreshingInterceptor.interceptAsync
+    Inter->>Store: refresh access token (refreshToken)
+    Store-->>Inter: new accessToken + accessTokenExpiry
+    Inter-->>Client: .retryWithUpdatedToken
+    Client->>Client: performRequest(tokenRefreshDepth + 1)
+    alt depth >= 1
+        Client-->>App: surface error (no infinite recursion)
+    else
+        Client->>Session: retry with new token
+        Session-->>Client: 200 + data (logging suppressed for first attempt)
+        Client-->>App: decoded T
+    end
+
+    Note over App,Store: Flow 4 — Background upload prep
+
+    App->>Client: prepareRequest(endpoint)
+    Client->>Inter: interceptRequest(URLRequest)
+    Inter-->>Client: fully prepared URLRequest
+    Client-->>App: URLRequest (hand to background URLSession)
+
+    Note over App,Store: Flow 5 — Cancellation
+
+    App->>Client: cancelRequest(id)
+    Client->>Tasks: cancelTask(for: id)
+    Tasks->>Session: URLSessionTask.cancel()
+    Tasks-->>Client: task status = canceled
+    Client-->>App: throws .taskCanceled
+
+    Note over App,Store: Flow 6 — Network awareness & retry
+
+    Inter->>Inter: NetworkAwareInterceptor checks NetworkMonitor
+    alt offline
+        Inter-->>Client: throw .networkUnavailable
+        Client-->>App: APIClientError.networkUnavailable
+    else online but failed
+        Client->>Inter: RetryInterceptor.shouldRetry(response)
+        Inter-->>Client: retry policy (count, delay)
+        Client->>Session: retry data(for: request)
+    end

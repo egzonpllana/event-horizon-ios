@@ -68,6 +68,15 @@ EventHorizon includes a set of built-in interceptors, but you can create and inj
 3. **URLSession fetches** data from the remote server.
 4. **Response data** is decoded and propagated back through the layers.
 
+## Sequence Diagram
+
+End-to-end runtime flow: setup, request, token refresh with recursion guard, background-upload prep, cancellation, and network-aware retry.
+
+![EventHorizonSequenceDiagram](https://github.com/egzonpllana/EventHorizon/blob/main/event-horizon-mermaid-diagram.png)
+
+- Source: [`event-horizon-flow.mmd`](https://github.com/egzonpllana/EventHorizon/blob/main/event-horizon-flow.mmd)
+- Edit live: [open in mermaid.live](https://mermaid.live/edit#pako:eNqlVkuP2zYQ_isDHQoZdbyPbnswkAU26xQx0ASBs0YvvnClscUuTap8rOsG-e8dPmQxtlwf4osl8hvOzDffDPW1qFSNxRQKg387lBXOONtotl1JoF_LtOUVb5m08NC2wAx8UCY8nwIeBUf6I8zD53l8OQXNpUXtMeGhwtYqbU5hT8y8mO-O8isfmWQb1KfwL2gMV9IbLBd_pLcBGDnDcKqzzZN6QRlWVgn6SVkE9UrxUX7jsDWF34XawQ2s3O31zR05sq7t8IR6c38fw5v2kZY8S206BttHTm9CbeKDiVFOR_lhyWmr1Suv8SjOz2GVyw1USq6V3nZURNvA6DTs8Y3T0TqjGa7gE9qd0i8PO0bbV7BAq_f0H1wscK3RNP74K_iArEY9l39hRZaXCbrtCFp4GRk7TJGOmyXKulXE0qizmiHJkD0LhKdoFy3INAjBW2648crxZEK5XM5noyNkSv9AfoqkJEGkx2QRgD3XmlIFVlVUjsBDBIXNN_2x1m8RMZKL_JQsua2zzGINvT8ofQWU5v8yS5UeQxNYNceRJ71OoWaWlVTYA1MJmQC5t9Jjx4QzrZIGz5DRMFkLXCRQ3nLD9idJlWsumZgFbHhcDDokC6o0JeDrSBw8XVbML13tA-kUSFAflHfX1GzFXL4ywetI-6oYdecNMOENfj41GSbkSOkZI5ODcB7MXlZnpBKDjGpJmijTajh6NKweibtcYhRv9vb-n5br_ZkCTLTv0T-5bZZt7fWVafSQXAduUfux0CnfZsnOKLGG_N6kCJmwVC2_dv8WbuLaQEGN02tWIaDWNEBKqai_SAecqqqxctoXI52IwuDJOZm4QyKwo0wCHbbP40xhb6-vKWCvUyj91PSTybi2pXQMaYwyJUlqajNmLW7brln-X5YhUllf1uddp893rHrZaOVkDa4VioYFRXDmDvA7NFoXx3Pux0ZV5mDthNh3bvJZM9iO-Sjyo4BIh-c-nf6qHF3m49eOj0dGXwlChJE2zEIVEF1SvB4Nz_QI8y9x5h2AYT-XTh-o35pEw_I7dOY-XBGGhrEz8DZ5wXqQINtotTMw8SaPB-AlKn7rqEjXKTB_n0o_En6KMu_O6OZHKnh-_eYXc9VgRZ87afujov5Suu9TtV4LLrPmOpFFyAMmMh6wlOyVceHv07Mtcfhaee87-6ylb2pQ0ruHZ2dhTbsdl0OSDl8U-VQ1jXKiDsvl0WUzmEmcEq0SvNpDWZFO7Zj6V7D96PJwOXd_hoYvxlDQF9OW8dp_735dFbbBLa6K6aqocc2csKvim0cxZ9UXugMIZrVDWnFh9qZP47T87T-2mcm2)
+
 ## Installation
 To integrate EventHorizon into your project, add the following dependency to your `Package.swift` file:
 
