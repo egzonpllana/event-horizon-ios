@@ -17,6 +17,7 @@ EventHorizon is a lightweight, thread-safe package designed to build a clean and
 
 | Version | Type | Highlights |
 | --- | --- | --- |
+| 3.1.0 | Minor / additive | `NetworkSession` gains `init(requestTimeout:resourceTimeout:)` for distinct idle vs total-transfer timeouts. New `RemoteFallbackExecuting` / `DefaultRemoteFallbackExecutor` and `FetchOutcome<T>` for remote-with-local-fallback flows with explicit cloud-vs-cache outcomes and an optional overall timeout. No existing API or default behavior changes. |
 | 3.0.0 | Major / breaking | `AuthTokenStoreProviding` gains `accessTokenExpiry` and `setAccessTokenExpiry(_:)` — existing conformers must implement both. `APIClient` adds `prepareRequest(_:)` for background-session uploads and a `tokenRefreshDepth` guard that prevents infinite recursion when a refreshed token is still rejected. Duplicate 401 logging is suppressed during a refresh retry. |
 | 2.0.0 | Major | Introduces `AuthTokenStoreProviding`, `NetworkMonitorProtocol`, `NetworkAwareInterceptor`, and `TokenRefreshingInterceptorProtocol`. `APIClient`, `RetryInterceptor`, and task management received a substantial rewrite. |
 
@@ -41,6 +42,36 @@ EventHorizon includes a set of built-in interceptors, but you can create and inj
 - `RequestTimeoutInterceptor` - Configures custom timeout intervals for requests.
 - `HeaderInjectorInterceptor` - Adds custom headers to outgoing requests.
 - `RetryInterceptor` - Automatically retries failed requests based on status codes.
+
+## Remote Fallback & Timeouts
+
+Configure distinct idle vs total-transfer timeouts for all requests of a client:
+
+```swift
+let session = NetworkSession(requestTimeout: 30, resourceTimeout: 120)
+let apiClient = APIClient(session: session, interceptors: [...])
+```
+
+Run a remote operation with a local fallback and an explicit outcome. The caller always knows whether the data is fresh or served from cache after a failure — useful to avoid marking a screen as "synced" when the remote call actually failed:
+
+```swift
+let executor: RemoteFallbackExecuting = DefaultRemoteFallbackExecutor()
+
+let outcome: FetchOutcome<[PostDTO]> = try await executor.execute(
+    timeout: 15, // optional overall deadline; nil to rely on transport timeouts
+    remote: { try await apiClient.request(APIEndpoint.getPosts) },
+    fallback: { try await localStore.fetchPosts() }
+)
+
+switch outcome {
+case .cloud(let posts):
+    // fresh data — safe to mark as synced
+case .cache(let posts, let underlyingError):
+    // stale data shown; schedule a retry, do not mark as synced
+}
+```
+
+Behavior: remote success → `.cloud`; remote failure → fallback → `.cache` carrying the remote error; both fail → the remote error is thrown; cancellation of the surrounding task is passed through (a cancelled caller never receives `.cache`).
 
 ## Mocking and Tests Support
 - [MockAPIClient](https://github.com/egzonpllana/EventHorizon/blob/main/Sources/EventHorizon/TestsSupport/Mocks/MockAPIClient.swift)

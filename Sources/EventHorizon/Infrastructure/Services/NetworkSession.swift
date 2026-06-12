@@ -8,7 +8,7 @@ import Foundation
 /// A concrete implementation of `NetworkSessionProtocol` that wraps `URLSession` with configurable timeout support.
 public final class NetworkSession: NetworkSessionProtocol {
 
-    private let session: URLSession
+    let session: URLSession
 
     /// Initializes a `NetworkSession` with optional timeout settings.
     ///
@@ -22,6 +22,23 @@ public final class NetworkSession: NetworkSessionProtocol {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout
+        self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }
+
+    /// Initializes a `NetworkSession` with distinct request and resource timeouts.
+    ///
+    /// - Parameters:
+    ///   - requestTimeout: The idle interval allowed between data arrivals (`timeoutIntervalForRequest`).
+    ///   - resourceTimeout: The total interval allowed for the whole transfer (`timeoutIntervalForResource`).
+    ///   - delegate: Optional `URLSessionDelegate`, if needed for custom behavior.
+    public init(
+        requestTimeout: TimeInterval,
+        resourceTimeout: TimeInterval,
+        delegate: URLSessionDelegate? = nil
+    ) {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = requestTimeout
+        config.timeoutIntervalForResource = resourceTimeout
         self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }
 
